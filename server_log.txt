@@ -1,0 +1,3 @@
+Starting server at 16:13:42.52 
+Server running on port 5000
+MongoDB connected
