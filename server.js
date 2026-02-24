@@ -30,9 +30,16 @@ const authLimiter = rateLimit({
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/walletapp')
+if (!process.env.MONGO_URI) {
+  console.error('MONGO_URI not defined in environment variables');
+  process.exit(1);
+}
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log(err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 // Routes
 app.use('/api/auth', authLimiter, require('./routes/auth'));

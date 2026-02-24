@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+server_log.txt
+server_log_v2.txt
+npm_install_log.txt
+output.txt
+node_v.txt
+port_check.txt
+test_exec.txt
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Task/Startup Files
+start_server.bat
