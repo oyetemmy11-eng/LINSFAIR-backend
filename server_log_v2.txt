@@ -1,0 +1,16 @@
+Starting server at 10:16:37.29 
+Server running on port 5001
+[Scheduler] Initial automation check triggered on startup
+[Automation] Runner started at 2026-02-24T09:16:37.758Z
+[Automation] Starting Savings Plan processing...
+Error: queryTxt ESERVFAIL linsfair.f8m8tjr.mongodb.net
+    at QueryReqWrap.onresolve [as oncomplete] (node:internal/dns/promises:293:17) {
+  errno: undefined,
+  code: 'ESERVFAIL',
+  syscall: 'queryTxt',
+  hostname: 'linsfair.f8m8tjr.mongodb.net'
+}
+[Automation] Critical error in runner: MongooseError: Operation `savingsplans.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (c:\Users\PROGRESSIVE\Documents\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:185:23)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)

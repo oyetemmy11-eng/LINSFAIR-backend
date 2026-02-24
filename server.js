@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
+const { runAutomation } = require('./services/automationService');
 
 dotenv.config();
 
@@ -38,6 +39,9 @@ app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/transactions', require('./routes/transactions'));
+app.use('/api/locks', require('./routes/locks'));
+app.use('/api/bills', require('./routes/bills'));
+app.use('/api/savings', require('./routes/savings'));
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -46,4 +50,16 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+
+  // Schedule automation runner: Every 24 hours
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  setInterval(() => {
+    runAutomation();
+  }, TWENTY_FOUR_HOURS);
+
+  // Initial run on startup
+  console.log('[Scheduler] Initial automation check triggered on startup');
+  runAutomation();
+});
