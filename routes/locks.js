@@ -2,39 +2,67 @@ const express = require('express');
 const router = express.Router();
 const Lock = require('../models/Lock');
 const User = require('../models/User');
+const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
+const mongoose = require('mongoose');
 
 // @route   POST api/locks
 // @desc    Create a new safety lock
 router.post('/', auth, async (req, res) => {
     const { amount, currency, purpose, dueDate, guardianUsername } = req.body;
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
-        const user = await User.findById(req.userId);
-        const guardian = await User.findOne({ username: guardianUsername });
+        const user = await User.findById(req.userId).session(session);
+        const guardian = await User.findOne({ username: guardianUsername }).session(session);
 
-        if (!guardian) return res.status(404).json({ error: 'Guardian not found' });
-        if (guardian._id.equals(user._id)) return res.status(400).json({ error: 'You cannot be your own guardian' });
+        if (!guardian) {
+            await session.abortTransaction();
+            return res.status(404).json({ error: 'Guardian not found' });
+        }
+        if (guardian._id.equals(user._id)) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'You cannot be your own guardian' });
+        }
 
         const balanceField = currency === 'USD' ? 'dollarBalance' : 'nairaBalance';
-        if (user[balanceField] < amount) return res.status(400).json({ error: 'Insufficient balance' });
+        if (user[balanceField] < amount) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'Insufficient balance' });
+        }
 
         // Deduct balance
-        user[balanceField] -= amount;
-        await user.save();
+        user[balanceField] -= Number(amount);
+        await user.save({ session });
 
         const lock = new Lock({
             owner: user._id,
             guardian: guardian._id,
-            amount,
+            amount: Number(amount),
             currency,
             purpose,
             dueDate,
         });
+        await lock.save({ session });
 
-        await lock.save();
+        // Create transaction record
+        const transaction = new Transaction({
+            user: user._id,
+            amount: Number(amount),
+            currency,
+            description: `Safety Lock created: ${purpose}`,
+            type: 'expense',
+            date: new Date()
+        });
+        await transaction.save({ session });
+
+        await session.commitTransaction();
         res.json(lock);
     } catch (err) {
+        await session.abortTransaction();
         res.status(500).json({ error: err.message });
+    } finally {
+        session.endSession();
     }
 });
 

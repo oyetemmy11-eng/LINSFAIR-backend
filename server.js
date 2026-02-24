@@ -28,19 +28,6 @@ const authLimiter = rateLimit({
   max: 20, // 20 requests per window
   message: { error: 'Too many requests, please try again later' },
 });
-
-// Connect to MongoDB
-if (!process.env.MONGO_URI) {
-  console.error('MONGO_URI not defined in environment variables');
-  process.exit(1);
-}
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
-
 // Routes
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/user', require('./routes/user'));
@@ -56,17 +43,31 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Connect to MongoDB
+if (!process.env.MONGO_URI) {
+  console.error('MONGO_URI not defined in environment variables');
+  process.exit(1);
+}
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log('MongoDB connected');
 
-  // Schedule automation runner: Every 24 hours
-  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-  setInterval(() => {
-    runAutomation();
-  }, TWENTY_FOUR_HOURS);
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
 
-  // Initial run on startup
-  console.log('[Scheduler] Initial automation check triggered on startup');
-  runAutomation();
-});
+      // Schedule automation runner: Every 24 hours
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      setInterval(() => {
+        runAutomation();
+      }, TWENTY_FOUR_HOURS);
+
+      // Initial run on startup
+      console.log('[Scheduler] Initial automation check triggered on startup');
+      runAutomation();
+    });
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });

@@ -7,7 +7,7 @@ const auth = require('../middleware/auth');
 // @route   POST api/bills
 // @desc    Add a new bill to track
 router.post('/', auth, async (req, res) => {
-    const { title, amount, currency, category, dueDate } = req.body;
+    const { title, amount, currency, category, dueDate, autoPay } = req.body;
     try {
         const bill = new Bill({
             user: req.userId,
@@ -16,6 +16,7 @@ router.post('/', auth, async (req, res) => {
             currency,
             category,
             dueDate,
+            autoPay: autoPay || false
         });
         await bill.save();
         res.json(bill);
