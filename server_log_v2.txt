@@ -14,3 +14,4 @@ Error: queryTxt ESERVFAIL linsfair.f8m8tjr.mongodb.net
     at Timeout.<anonymous> (c:\Users\PROGRESSIVE\Documents\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:185:23)
     at listOnTimeout (node:internal/timers:605:17)
     at process.processTimers (node:internal/timers:541:7)
+Server process ended at 15:51:27.83 

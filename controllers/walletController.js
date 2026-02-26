@@ -4,6 +4,7 @@ const User = require('../models/User');
 const getBalances = async (req, res) => {
   try {
     const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ nairaBalance: user.nairaBalance, dollarBalance: user.dollarBalance });
   } catch (err) {
     res.status(400).json({ error: err.message });

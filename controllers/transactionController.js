@@ -1,6 +1,15 @@
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 
+const serializeTransaction = (t) => ({
+  _id: t._id,
+  description: t.description,
+  amount: t.amount,
+  currency: t.currency,
+  type: t.type,
+  date: new Date(t.date).toISOString(),
+});
+
 // Helper: apply a transaction's effect on a user's balance
 const applyToBalance = (user, amount, currency, type) => {
   const delta = type === 'income' ? amount : -amount;
@@ -25,7 +34,7 @@ const reverseFromBalance = (user, amount, currency, type) => {
 const getTransactions = async (req, res) => {
   try {
     const transactions = await Transaction.find({ user: req.userId });
-    res.json(transactions);
+    res.json(transactions.map(serializeTransaction));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -54,7 +63,7 @@ const addTransaction = async (req, res) => {
     applyToBalance(user, amount, currency, type);
     await user.save();
 
-    res.status(201).json(transaction);
+    res.status(201).json(serializeTransaction(transaction));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -97,7 +106,7 @@ const updateTransaction = async (req, res) => {
       { new: true }
     );
 
-    res.json(updated);
+    res.json(serializeTransaction(updated));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

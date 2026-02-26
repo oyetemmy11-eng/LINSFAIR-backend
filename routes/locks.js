@@ -6,6 +6,16 @@ const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
 
+const serializeLock = (l) => ({
+    _id: l._id,
+    amount: l.amount,
+    currency: l.currency,
+    purpose: l.purpose,
+    dueDate: new Date(l.dueDate).toISOString(),
+    status: l.status,
+    guardian: l.guardian && l.guardian.username ? { username: l.guardian.username } : undefined
+});
+
 // @route   POST api/locks
 // @desc    Create a new safety lock
 router.post('/', auth, async (req, res) => {
@@ -13,6 +23,10 @@ router.post('/', auth, async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
+        if (typeof amount !== 'number' || amount <= 0) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'Amount must be a positive number' });
+        }
         const user = await User.findById(req.userId).session(session);
         const guardian = await User.findOne({ username: guardianUsername }).session(session);
 
@@ -57,7 +71,8 @@ router.post('/', auth, async (req, res) => {
         await transaction.save({ session });
 
         await session.commitTransaction();
-        res.json(lock);
+        const populated = await Lock.findById(lock._id).populate('guardian', 'username');
+        res.json(serializeLock(populated));
     } catch (err) {
         await session.abortTransaction();
         res.status(500).json({ error: err.message });
@@ -73,7 +88,7 @@ router.get('/', auth, async (req, res) => {
         const locks = await Lock.find({ owner: req.userId })
             .populate('guardian', 'username')
             .select('-__v');
-        res.json(locks);
+        res.json(locks.map(serializeLock));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -89,7 +104,15 @@ router.get('/requests', auth, async (req, res) => {
         })
             .populate('owner', 'username')
             .select('-__v');
-        res.json(requests);
+        res.json(requests.map(l => ({
+            _id: l._id,
+            amount: l.amount,
+            currency: l.currency,
+            purpose: l.purpose,
+            dueDate: new Date(l.dueDate).toISOString(),
+            status: l.status,
+            owner: l.owner && l.owner.username ? { username: l.owner.username } : undefined
+        })));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -120,29 +143,30 @@ router.post('/:id/approve', auth, async (req, res) => {
         if (!lock) return res.status(404).json({ error: 'Lock not found' });
 
         if (action === 'approve') {
-            lock.status = 'released';
-            const owner = await User.findById(lock.owner);
-            const balanceField = lock.currency === 'USD' ? 'dollarBalance' : 'nairaBalance';
-            owner[balanceField] += lock.amount;
-            await owner.save();
+            lock.status = 'available';
         } else {
             lock.status = 'active';
         }
 
         await lock.save();
-        res.json(lock);
+        const populated = await Lock.findById(lock._id).populate('guardian', 'username');
+        res.json(serializeLock(populated));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // @route   POST api/locks/:id/release
-// @desc    Standard release after due date
+// @desc    Release when available or past due date
 router.post('/:id/release', auth, async (req, res) => {
     try {
         const lock = await Lock.findOne({ _id: req.params.id, owner: req.userId });
         if (!lock) return res.status(404).json({ error: 'Lock not found' });
-        if (new Date() < new Date(lock.dueDate)) return res.status(400).json({ error: 'Due date has not passed yet' });
+        const now = new Date();
+        const duePassed = now >= new Date(lock.dueDate);
+        if (!(lock.status === 'available' || duePassed)) {
+            return res.status(400).json({ error: 'Lock is not available for release yet' });
+        }
 
         lock.status = 'released';
         const owner = await User.findById(lock.owner);
@@ -151,7 +175,8 @@ router.post('/:id/release', auth, async (req, res) => {
 
         await owner.save();
         await lock.save();
-        res.json(lock);
+        const populated = await Lock.findById(lock._id).populate('guardian', 'username');
+        res.json(serializeLock(populated));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
